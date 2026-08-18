@@ -1,4 +1,5 @@
 streamlit
 python-dotenv
 mcp
+httpx
 reportlab
