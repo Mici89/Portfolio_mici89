@@ -1,0 +1,6 @@
+.env
+.DS_Store
+data/*
+!data/.gitkeep
+__pycache__/
+*.pyc

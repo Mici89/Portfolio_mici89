@@ -1,0 +1,256 @@
+[
+  {
+    "number": 6,
+    "question": "统计各部门当前在职员工人数",
+    "query_id": "query_20260816T152134517427Z_e2929a51",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "当前在职员工人数最多的部门是仓储物流部、平台研发部和财务部，均为25人；最少的部门是应用研发部，为21人。",
+    "limitations": [
+      "部门状态未过滤，可能包含已停用部门。",
+      "在职状态仅按ACTIVE和PROBATION判断，未考虑其他可能状态。"
+    ],
+    "sql": "SELECT d.department_name, COUNT(DISTINCT e.employee_id) AS employee_count FROM org_employee e JOIN org_department d ON e.department_id = d.department_id WHERE e.employment_status IN ('ACTIVE', 'PROBATION') GROUP BY d.department_name ORDER BY employee_count DESC",
+    "elapsed_s": 8.1
+  },
+  {
+    "number": 7,
+    "question": "查询 2026 年上半年销售额最高的 10 个客户，取消订单不计入",
+    "query_id": "query_20260816T152142660237Z_286f06fe",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "2026年上半年销售额最高的10个客户（已排除取消订单）为：浙江远航智能制造有限公司（10,589,587.66）、福建博盛智能制造有限公司（9,016,586.40）、上海德润工业设备有限公司（8,617,124.60）、浙江新锐智能制造有限公司（8,610,394.15）、北京启明自动化股份有限公司（8,259,680.33）、广东新锐科技有限公司（7,978,380.45）、湖北博盛自动化股份有限公司（7,768,289.98）、安徽启明工业设备有限公司（7,378,208.59）、上海恒信科技有限公司（7,197,310.01）、浙江华辰供应链有限公司（7,193,404.80）。",
+    "limitations": [
+      "销售额使用订单含税金额（total_amount），未区分净额或折扣。",
+      "取消订单状态值假设为'CANCELLED'，实际值可能不同，需确认。",
+      "客户名称可能重复，但按customer_id分组，结果基于当前数据。"
+    ],
+    "sql": "SELECT c.customer_name, SUM(o.total_amount) AS total_sales FROM sale_order o JOIN crm_customer c ON o.customer_id = c.customer_id WHERE o.order_date >= '2026-01-01' AND o.order_date <= '2026-06-30' AND o.order_status <> 'CANCELLED' GROUP BY c.customer_id, c.customer_name ORDER BY total_sales DESC LIMIT 10",
+    "elapsed_s": 9.7
+  },
+  {
+    "number": 8,
+    "question": "查询每个仓库库存低于产品安全库存的产品数量",
+    "query_id": "query_20260816T152152349807Z_8534fa47",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "查询结果显示，每个仓库中库存低于安全库存的产品数量分别为：上海中央仓26个，苏州成品仓25个，广州区域仓28个，成都区域仓29个，北京备件仓20个。",
+    "limitations": [
+      "仅统计了有库存记录的产品，无库存记录的产品未计入。",
+      "假设每个仓库-产品组合在库存表中只有一条记录，若存在多条可能重复计数。"
+    ],
+    "sql": "SELECT w.warehouse_id, w.warehouse_name, COUNT(DISTINCT p.product_id) AS product_count FROM inv_stock s JOIN scm_warehouse w ON s.warehouse_id = w.warehouse_id JOIN md_product p ON s.product_id = p.product_id WHERE s.quantity_on_hand < p.safety_stock GROUP BY w.warehouse_id, w.warehouse_name ORDER BY w.warehouse_id",
+    "elapsed_s": 9.2
+  },
+  {
+    "number": 9,
+    "question": "统计 2026 年 6 月各部门已批准或已付款的餐饮报销金额",
+    "query_id": "query_20260816T152201583776Z_89a91361",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "2026年6月各部门已批准或已付款的餐饮报销金额合计为3214.14元，涉及7个部门。其中仓储物流部最高，为1048.47元；总经理办公室最低，为49.79元。",
+    "limitations": [
+      "状态值'APPROVED'和'PAID'为假设值，实际状态可能不同。",
+      "餐饮类别代码'MEAL'和'DINING'为假设值，实际代码可能不同。",
+      "时间范围基于报销单提交日期，而非审批或付款日期。"
+    ],
+    "sql": "SELECT d.department_name, SUM(i.amount) AS total_amount FROM fin_expense_claim c JOIN fin_expense_item i ON c.claim_id = i.claim_id JOIN org_department d ON c.department_id = d.department_id WHERE c.submitted_date >= '2026-06-01' AND c.submitted_date < '2026-07-01' AND c.claim_status IN ('APPROVED', 'PAID') AND i.category_code IN ('MEAL', 'DINING') GROUP BY d.department_name ORDER BY total_amount DESC",
+    "elapsed_s": 9.9
+  },
+  {
+    "number": 10,
+    "question": "找出销售订单金额与明细汇总金额不一致的订单",
+    "query_id": "query_20260816T152211514758Z_c7d8f903",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "没有找到销售订单金额与明细汇总金额不一致的订单。",
+    "limitations": [
+      "假设订单头金额与明细行金额均为含税金额，且同一订单币种一致。",
+      "仅比较金额数值，未考虑币种差异。"
+    ],
+    "sql": "SELECT so.sales_order_no, so.order_status, so.total_amount, SUM(sol.line_amount) AS sum_line_amount FROM sale_order so JOIN sale_order_line sol ON so.sales_order_id = sol.sales_order_id GROUP BY so.sales_order_id, so.sales_order_no, so.order_status, so.total_amount HAVING so.total_amount <> SUM(sol.line_amount) ORDER BY so.sales_order_no LIMIT 100",
+    "elapsed_s": 8.8
+  },
+  {
+    "number": 11,
+    "question": "查询采购订单按时到货率，取消和草稿订单不计入",
+    "query_id": "query_20260816T152220261508Z_b78b3b52",
+    "status": "completed",
+    "attempt_count": 3,
+    "answer": "根据查询结果，无法直接计算按时到货率，因为查询结果中不包含实际到货日期字段，无法判断订单是否按时到货。查询返回了100条采购订单明细记录，涉及多个订单，但缺少实际到货日期信息。",
+    "limitations": [
+      "缺少实际到货日期字段，无法计算按时到货率。",
+      "订单状态的具体取值可能不限于示例中的值，实际过滤条件可能不准确。",
+      "查询结果按purchase_order_id排序，但未包含所有订单，可能不完整。",
+      "查询闭环已达到3轮上限：当前SQL仅返回采购订单头与明细的联表明细，缺少实际到货日期字段，无法计算按时到货率；且结果被LIMIT 100截断，未覆盖全部有效订单，统计不完整。"
+    ],
+    "sql": "SELECT po.purchase_order_id, po.purchase_order_no, po.order_date, po.expected_date, po.order_status, pol.received_qty FROM scm_purchase_order po LEFT JOIN scm_purchase_order_line pol ON po.purchase_order_id = pol.purchase_order_id WHERE po.order_status NOT IN ('CANCELLED', 'DRAFT') ORDER BY po.purchase_order_id LIMIT 100",
+    "elapsed_s": 35.6
+  },
+  {
+    "number": 12,
+    "question": "找出已离职但仍拥有未锁定系统账号的员工",
+    "query_id": "query_20260816T152255875258Z_d138b809",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "查询到11名已离职但系统账号未锁定的员工，具体名单如下：谢浩然（E00044）、卫勇（E00049）、李敏（E00061）、陶凯（E00078）、水平（E00092）、卫静（E00117）、秦思远（E00134）、孔欣（E00145）、陶涛（E00152）、郑洋（E00166）、吕雨桐（E00176）。",
+    "limitations": [
+      "数据来源为schema_only，未验证实际数据一致性。",
+      "假设已离职状态仅由employment_status='LEFT'表示，未考虑其他可能状态。",
+      "假设未锁定仅由is_locked=0表示，未考虑其他锁定机制。"
+    ],
+    "sql": "SELECT e.employee_no, e.employee_name, u.login_name, u.is_locked FROM org_employee e INNER JOIN iam_user u ON e.employee_id = u.employee_id WHERE e.employment_status = 'LEFT' AND u.is_locked = 0 ORDER BY e.employee_no LIMIT 100",
+    "elapsed_s": 8.4
+  },
+  {
+    "number": 15,
+    "question": "统计 2026 年 6 月各部门员工的平均实发工资",
+    "query_id": "query_20260816T152304372630Z_97cafaf8",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "2026年6月各部门员工的平均实发工资统计结果如下：人力资源部21192.34元，仓储物流部16214.77元，信息技术部24025.20元，平台研发部23955.23元，应用研发部26913.95元，总经理办公室33004.20元，生产运营部21293.83元，研发中心27839.27元，财务部20246.91元，质量管理部22221.50元，采购部20660.19元，销售部20699.22元。",
+    "limitations": [
+      "平均实发工资基于有工资发放记录的员工计算，未考虑离职状态。",
+      "部门名称来自部门维度表，可能存在重名或历史变更。",
+      "金额保留原始精度，未进行四舍五入。"
+    ],
+    "sql": "SELECT d.department_name AS 部门, AVG(g.sfgz) AS 平均实发工资 FROM rs_gzff g JOIN org_employee e ON g.ygbh = e.employee_no JOIN org_department d ON e.department_id = d.department_id WHERE g.gzny = '2026-06' GROUP BY d.department_name ORDER BY d.department_name",
+    "elapsed_s": 9.5
+  },
+  {
+    "number": 16,
+    "question": "查询 2026 年 6 月迟到次数最多的 10 名员工",
+    "query_id": "query_20260816T152313845242Z_6e49fde8",
+    "status": "completed",
+    "attempt_count": 3,
+    "answer": "2026年6月迟到次数最多的10名员工中，实际返回6名员工，每人迟到1次。",
+    "limitations": [
+      "奖惩类型'CF'是否确指迟到未在数据字典中确认，若实际代码不同，结果可能不准确。",
+      "仅返回6名员工，未达到10名，说明符合条件的记录有限。",
+      "所有员工迟到次数均为1，未出现更高次数。",
+      "查询闭环已达到3轮上限：当前SQL使用jclx='CF'作为迟到条件，但该代码含义未确认，存在映射歧义。且结果仅返回6名员工，每人迟到次数均为1，无法确定是否覆盖所有迟到员工，因为可能还有其他迟到代码（如JL）或记录未被统计。需要确认迟到代码后再执行查询。"
+    ],
+    "sql": "SELECT e.employee_name AS 员工姓名, e.employee_no AS 员工工号, COUNT(*) AS 迟到次数 FROM rs_jcjl j INNER JOIN org_employee e ON j.ygbh = e.employee_no WHERE j.fsrq >= '2026-06-01' AND j.fsrq < '2026-07-01' AND j.jclx = 'CF' GROUP BY e.employee_name, e.employee_no ORDER BY 迟到次数 DESC LIMIT 10",
+    "elapsed_s": 26.5
+  },
+  {
+    "number": 17,
+    "question": "统计 2026 年上半年各客户的有效收款金额，冲销记录不计入",
+    "query_id": "query_20260816T152340389384Z_4f72e786",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "查询返回0行，没有找到2026年上半年（2026-01-01至2026-06-30）且核销状态为'0'（有效）的收款记录，因此无法统计各客户的有效收款金额。",
+    "limitations": [
+      "假设冲销状态为'1'，有效状态为'0'，但实际取值可能不同，需确认hxzt字段的业务含义。",
+      "假设客户通过khbh关联crm_customer的customer_code，但关联字段可能不一致。",
+      "空结果不代表有效收款金额为0，而是没有符合条件的记录。"
+    ],
+    "sql": "SELECT c.customer_name AS customer_name, SUM(h.hkje) AS total_received_amount FROM xs_hkhx h JOIN crm_customer c ON h.khbh = c.customer_code WHERE h.hkrq >= '2026-01-01' AND h.hkrq <= '2026-06-30' AND h.hxzt = '0' GROUP BY c.customer_name ORDER BY total_received_amount DESC",
+    "elapsed_s": 8.9
+  },
+  {
+    "number": 18,
+    "question": "找出出现历史 SKU、无法匹配产品主数据的库存流水",
+    "query_id": "query_20260816T152349269606Z_4f02e550",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "未找到无法匹配产品主数据的库存流水记录。",
+    "limitations": [
+      "查询基于schema_only，未实际执行数据验证，结果可能受数据权限或表结构影响。",
+      "假设库存流水对应inv_stock表，若实际库存流水为其他表，则结果可能不准确。"
+    ],
+    "sql": "SELECT s.stock_id, s.warehouse_id, s.product_id, s.quantity_on_hand, s.quantity_allocated, s.last_counted_at, s.updated_at FROM inv_stock s LEFT JOIN md_product p ON s.product_id = p.product_id WHERE p.product_id IS NULL ORDER BY s.stock_id LIMIT 100",
+    "elapsed_s": 8.1
+  },
+  {
+    "number": 19,
+    "question": "对比每个客户的主数据授信额度和遗留风控表剩余可用额度",
+    "query_id": "query_20260816T152357485573Z_5ffc15fa",
+    "status": "completed",
+    "attempt_count": 3,
+    "answer": "查询返回了100个客户的主数据授信额度，但所有客户的遗留风控表剩余可用额度均为空（null），因此无法进行对比。",
+    "limitations": [
+      "t_b01表中可能没有与crm_customer.customer_code匹配的记录，导致剩余可用额度为空。",
+      "假设t_b01.n01代表剩余可用额度，但该字段语义未明确，可能存在偏差。",
+      "查询仅返回前100个客户，未覆盖全部客户数据。",
+      "查询闭环已达到3轮上限：当前查询结果中所有客户的legacy_remaining_credit均为null，无法完成对比目标。上一轮evidence查询显示t_b01表存在数据且c01字段为RC开头编码，但crm_customer.customer_code的格式未知，关联可能不匹配。需进一步验证关联字段。"
+    ],
+    "sql": "SELECT c.customer_id, c.customer_name, c.credit_limit AS master_credit_limit, r.remaining_credit AS legacy_remaining_credit FROM crm_customer c LEFT JOIN (SELECT t.c01, t.n01 AS remaining_credit FROM t_b01 t WHERE t.ts01 = (SELECT MAX(t2.ts01) FROM t_b01 t2 WHERE t2.c01 = t.c01)) r ON c.customer_code = r.c01 ORDER BY c.customer_id LIMIT 100",
+    "elapsed_s": 25.0
+  },
+  {
+    "number": 20,
+    "question": "查询已被冻结授信但 2026 年仍然产生销售订单的客户",
+    "query_id": "query_20260816T152422433106Z_afecb2cc",
+    "status": "completed",
+    "attempt_count": 3,
+    "answer": "当前查询结果仅返回了crm_customer表中credit_limit字段的分布情况，共100条记录且已截断，未包含任何客户ID或客户名称，也未关联sale_order表。因此，无法直接回答“已被冻结授信但2026年仍然产生销售订单的客户”这一问题。",
+    "limitations": [
+      "“冻结授信”的判定标准未明确，当前结果中credit_limit均为正数，无法推断冻结状态。",
+      "查询结果被截断，仅返回前100条记录，可能遗漏其他credit_limit取值。",
+      "未执行最终的目标查询，实际SQL与问题意图不符，需重新执行关联查询。",
+      "查询闭环已达到3轮上限：当前SQL仅查询了credit_limit字段的取值分布，返回大量正数授信额度，未包含0或负值，无法确认冻结授信的实际表示方式。且结果被截断，无法完整判断。需要进一步探索数据模型，确定冻结授信的正确字段和取值。"
+    ],
+    "sql": "SELECT credit_limit, COUNT(*) AS cnt FROM crm_customer GROUP BY credit_limit ORDER BY credit_limit",
+    "elapsed_s": 36.0
+  },
+  {
+    "number": 21,
+    "question": "哪些产品在所有仓库的可用库存都低于安全库存，同时过去 90 天仍有销售？",
+    "query_id": "query_20260816T152458472766Z_bcf0eb37",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "没有找到在所有仓库中可用库存均低于安全库存，且过去90天内有销售记录的产品。",
+    "limitations": [
+      "可用库存使用账面库存（quantity_on_hand），未扣除已分配数量。",
+      "销售记录未考虑订单状态，可能包含未完成订单。",
+      "所有仓库指inv_stock中存在的仓库，若产品在部分仓库无记录，则视为不满足条件。"
+    ],
+    "sql": "SELECT p.product_id, p.product_name, p.sku FROM md_product p WHERE EXISTS (SELECT 1 FROM inv_stock s WHERE s.product_id = p.product_id AND s.quantity_on_hand < p.safety_stock) AND NOT EXISTS (SELECT 1 FROM inv_stock s2 WHERE s2.product_id = p.product_id AND s2.quantity_on_hand >= p.safety_stock) AND EXISTS (SELECT 1 FROM sale_order_line sol JOIN sale_order so ON sol.sales_order_id = so.sales_order_id WHERE sol.product_id = p.product_id AND so.order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)) ORDER BY p.product_id LIMIT 100;",
+    "elapsed_s": 11.0
+  },
+  {
+    "number": 22,
+    "question": "找出 2026 年销售额增长但有效收款下降的客户",
+    "query_id": "query_20260816T152509499335Z_4db55920",
+    "status": "completed",
+    "attempt_count": 2,
+    "answer": "2026年销售额增长但有效收款下降的客户共有6家，分别是：上海恒信工业设备有限公司、安徽启明工业设备有限公司、安徽新锐供应链有限公司、广东启明工业设备有限公司、浙江新锐智能制造有限公司、浙江联创科技有限公司。",
+    "limitations": [
+      "销售额使用订单含税金额（total_amount），有效收款使用回款核销金额（hkje），可能与实际口径存在差异。",
+      "客户关联方式：销售订单通过customer_id关联客户，回款通过khbh关联客户编码，若编码不一致可能导致匹配偏差。",
+      "仅返回满足条件的客户，未包含无销售或无回款记录的客户。"
+    ],
+    "sql": "SELECT c.customer_name, COALESCE(s2025.sales_2025, 0) AS sales_2025, COALESCE(s2026.sales_2026, 0) AS sales_2026, COALESCE(p2025.payment_2025, 0) AS payment_2025, COALESCE(p2026.payment_2026, 0) AS payment_2026 FROM crm_customer c LEFT JOIN (SELECT so.customer_id, SUM(so.total_amount) AS sales_2025 FROM sale_order so WHERE so.order_date BETWEEN '2025-01-01' AND '2025-12-31' GROUP BY so.customer_id) s2025 ON c.customer_id = s2025.customer_id LEFT JOIN (SELECT so.customer_id, SUM(so.total_amount) AS sales_2026 FROM sale_order so WHERE so.order_date BETWEEN '2026-01-01' AND '2026-12-31' GROUP BY so.customer_id) s2026 ON c.customer_id = s2026.customer_id LEFT JOIN (SELECT x.khbh, SUM(x.hkje) AS payment_2025 FROM xs_hkhx x WHERE x.hkrq BETWEEN '2025-01-01' AND '2025-12-31' GROUP BY x.khbh) p2025 ON c.customer_code = p2025.khbh LEFT JOIN (SELECT x.khbh, SUM(x.hkje) AS payment_2026 FROM xs_hkhx x WHERE x.hkrq BETWEEN '2026-01-01' AND '2026-12-31' GROUP BY x.khbh) p2026 ON c.customer_code = p2026.khbh WHERE COALESCE(s2026.sales_2026, 0) > COALESCE(s2025.sales_2025, 0) AND COALESCE(p2026.payment_2026, 0) < COALESCE(p2025.payment_2025, 0) ORDER BY c.customer_name LIMIT 100",
+    "elapsed_s": 23.1
+  },
+  {
+    "number": 23,
+    "question": "哪些部门的人均报销金额和迟到率同时高于全公司平均值？",
+    "query_id": "query_20260816T152532550886Z_64e60f05",
+    "status": "completed",
+    "attempt_count": 3,
+    "answer": "无法直接回答哪些部门的人均报销金额和迟到率同时高于全公司平均值，因为当前查询仅验证了奖惩记录类型分布，未计算部门级指标。",
+    "limitations": [
+      "jclx字段的语义（'JL'或'CF'）未明确，需进一步确认。",
+      "未计算部门级指标，结果不完整。",
+      "查询闭环已达到3轮上限：当前SQL仅返回jclx字段的取值分布（JL和CF），未确认哪个表示迟到，也未计算人均报销金额和迟到率，无法回答用户问题。根据规则，plan_type=evidence必须返回replan，且需利用本轮候选值进行下一步验证。"
+    ],
+    "sql": "SELECT jclx, COUNT(*) AS cnt FROM rs_jcjl GROUP BY jclx",
+    "elapsed_s": 27.1
+  },
+  {
+    "number": 24,
+    "question": "检查实发工资是否满足“基本工资 + 津贴 + 奖金 - 扣款”，列出异常记录",
+    "query_id": "query_20260816T152559666894Z_41769999",
+    "status": "completed",
+    "attempt_count": 1,
+    "answer": "未发现实发工资不等于基本工资+津贴+奖金-扣款的异常记录。",
+    "limitations": [
+      "比较使用浮点运算，可能存在精度问题，但按业务规则直接比较。",
+      "未指定排序，实际按工资年月和员工编号排序。"
+    ],
+    "sql": "SELECT ygbh, gzny, jbgz, jt, jj, kk, sfgz FROM rs_gzff WHERE sfgz <> (jbgz + jt + jj - kk) ORDER BY gzny, ygbh LIMIT 100",
+    "elapsed_s": 8.6
+  }
+]

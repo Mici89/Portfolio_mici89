@@ -1,0 +1,35 @@
+# secrets and local configuration
+.env
+.env.local
+!.env.example
+**/.env
+**/.env.local
+**/.env.*.local
+!.env.example
+
+# dependencies and generated output
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/coverage/
+**/.wrangler/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/*.egg-info/
+**/.idea/
+**/.DS_Store
+
+# local databases, runtime state and uploads
+**/DB/*/data/
+**/backend/data/
+**/services/agent-api/storage/
+**/tmp/
+site/.runtime/
+
+# internal handoff material
+timeoff.md
+**/timeoff.md

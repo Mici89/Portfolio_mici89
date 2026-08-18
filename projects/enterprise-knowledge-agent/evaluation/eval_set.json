@@ -1,0 +1,17 @@
+[
+  {
+    "question": "员工每年有多少天带薪年假？",
+    "expected_terms": ["10 天", "10天"],
+    "answer_keywords": ["10 天", "10天"]
+  },
+  {
+    "question": "申请年假需要提前多久？",
+    "expected_terms": ["3 个工作日", "3个工作日"],
+    "answer_keywords": ["3 个工作日", "3个工作日"]
+  },
+  {
+    "question": "未使用的年假可以结转到下一年度吗？",
+    "expected_terms": ["不能自动结转", "不能结转"],
+    "answer_keywords": ["不能", "结转"]
+  }
+]
