@@ -1,154 +1,148 @@
 # Enterprise AI Portfolio
 
-一个面向企业真实工作流的 AI 应用作品集：把结构化数据库、外部企业信息和内部知识库，分别做成三个可运行、可解释、可审计的应用。
+这里放了我做的三个企业场景项目。它们不是同一个系统的三个页面，而是三条相对独立的业务链路：
 
-如果你是面试官，可以先看下面的业务闭环和截图，再按项目链接深入源码；不需要先配置数据库或阅读完整代码。
+1. 从遗留数据库里找到能用的数据；
+2. 对一家企业做信息检索和风险整理；
+3. 从公司文档中检索制度，并给出带出处的回答。
 
-> 演示数据均为模拟或脱敏数据。仓库不包含 API Key、数据库密码、数据库运行数据、向量库或本机依赖目录。
+三个项目共用一套本地启动脚本，但代码、依赖和数据库相互隔离。
 
-## 先看结果
+## 先看功能结果
 
-| 项目 | 解决的问题 | 入口 |
+数据库项目的离线演示已经准备了完整的物流数据，可以直接看到扫描结果、查询结果和写操作确认：
+
+<img src="projects/ai-database-agent/docs/portfolio/demo-scan.png" alt="数据库结构扫描" width="32%" />
+<img src="projects/ai-database-agent/docs/portfolio/demo-query.png" alt="自然语言查询结果" width="32%" />
+<img src="projects/ai-database-agent/docs/portfolio/demo-action.png" alt="写操作影响预览" width="32%" />
+
+这三张图分别对应：看懂表结构、问出数据、确认一次有影响范围的更新。其他两个项目的截图不会用空白首页代替，等外部数据和问答流程跑通后再补入。
+
+## 一、AI Database Agent
+
+### 解决什么问题
+
+物流公司的数据库里有客户、运单、网点、费用等表，但字段命名和注释并不总是能直接看懂。业务人员通常只能提出“上个月各区域完成了多少单”这类问题，不能自己写 SQL，也不应该让模型直接修改生产数据。
+
+### 目前可以做什么
+
+| 功能 | 实际行为 | 结果 |
 | --- | --- | --- |
-| **AI Database Agent** | 业务人员看不懂遗留库、不会写 SQL | [项目源码](projects/ai-database-agent/) · [离线演示说明](projects/ai-database-agent/docs/portfolio/README.md) |
-| **企信雷达** | 企业尽调信息分散、风险判断难以复核 | [项目源码](projects/enterprise-radar/) |
-| **Enterprise Knowledge Agent** | 企业文档分散，问答缺少证据和引用 | [项目源码](projects/enterprise-knowledge-agent/) |
+| 数据库理解 | 扫描表、字段、外键和少量真实行 | 生成表用途、字段含义和证据记录 |
+| 语义审核 | 对模型生成的语义目录逐项确认 | 发布一个有版本的语义目录 |
+| 自然语言查询 | 输入业务问题，生成结构化语义帧和 SQL | 执行查询并返回表格结果 |
+| 上下文追问 | 把历史问题、语义版本和上一次查询结果带入下一轮 | 可以继续问“那华东呢”这类问题 |
+| 安全写操作 | 先生成 Action Plan 和影响预览 | 用户确认后才进入事务执行 |
 
-三个项目的共同工程主线是：
-
-```text
-真实数据 / 文档取证 → 受控 Agent 编排与工具调用 → 可解释结果、人工确认与审计边界
-```
-
-## 项目截图
-
-### AI Database Agent：从数据库理解到安全操作
-
-<img src="projects/ai-database-agent/docs/portfolio/demo-scan.png" alt="数据库结构扫描与语义理解" width="32%" />
-<img src="projects/ai-database-agent/docs/portfolio/demo-query.png" alt="自然语言查询与结果展示" width="32%" />
-<img src="projects/ai-database-agent/docs/portfolio/demo-action.png" alt="写操作影响预览与人工确认" width="32%" />
-
-### 企信雷达：企业主体检索与风险扫描
-
-<img src="projects/enterprise-radar/docs/portfolio-screen.png" alt="企信雷达企业风险分析界面" width="80%" />
-
-### Enterprise Knowledge Agent：知识库文档与检索问答
-
-<img src="projects/enterprise-knowledge-agent/docs/portfolio-screen.png" alt="企业知识库文档管理界面" width="80%" />
-
-## 01 · AI Database Agent
-
-### 业务背景
-
-企业遗留数据库常见字段缺少注释、缩写严重、表关系不完整。业务人员无法直接理解数据，更无法稳定地把问题翻译成 SQL；只看 Schema 的模型还容易把字段含义猜错。
-
-### 业务闭环
+### 一次查询怎么走
 
 ```text
-扫描 Schema
-  → 结合样例数据进行有限轮次取证
-  → 生成可追溯语义目录并支持人工审核
-  → 自然语言查询 / 上下文追问
-  → 写操作生成 Action Plan
-  → 影响预览 → 用户确认 → 事务执行
+用户问题
+  → Understanding 读取语义目录和对话上下文
+  → SQL Generation 输出结构化语义帧
+  → 代码规则检查表、字段、SQL 类型和危险操作
+  → 执行 SQL
+  → 将 SQL、结果和上下文写回会话
 ```
 
-### 关键实现
-
-- Understanding、SQL Generation、Intent Router、Action Planning 等角色通过结构化状态协作。
-- 语义帧约束模型输出，代码规则二次校验 SQL 类型、表范围、字段范围和危险操作。
-- Adapter + SQL Dialect 抽象 MySQL、PostgreSQL、SQL Server、Oracle 的连接和方言差异。
-- 查询会把上下文、语义版本和真实结果一起交给后续对话，不靠前端自定义关键词切换语境。
-
-技术栈：Python、FastAPI、React、TypeScript、LangGraph、DeepSeek、SQLAlchemy。
-
-- [源码](projects/ai-database-agent/)
-- [作品展示版与录屏素材](projects/ai-database-agent/docs/portfolio/README.md)
-- 本地体验：`http://localhost:3101/demo`
-
-## 02 · 企信雷达
-
-### 业务背景
-
-企业尽调通常需要在多个信息源之间反复检索。人工流程耗时，而且风险结论容易缺少统一口径，难以沉淀成可交付报告。
-
-### 业务闭环
+写操作会多四步：
 
 ```text
-输入企业名称
-  → 搜索并确认唯一企业主体
-  → 并发获取工商与风险信息
-  → 确定性规则生成风险项与评分
-  → AI 汇总分析
-  → 导出 JSON / PDF 报告
+Action Plan → 影响行预览 → 用户确认 → 事务执行 / 回滚
 ```
 
-### 关键实现
+### 代码入口
 
-- 先确认企业主体，再执行后续查询，减少同名企业误判。
-- 外部信息通过工具层聚合，规则评分与模型分析分层，风险结论可追溯。
-- 报告生成使用结构化结果，不把模型文本直接当作评分依据。
+- 后端：`projects/ai-database-agent/backend/app/`
+- 前端：`projects/ai-database-agent/frontend/`
+- 数据库脚本：`projects/ai-database-agent/DB/`
+- 离线演示说明：[`docs/portfolio/README.md`](projects/ai-database-agent/docs/portfolio/README.md)
 
-技术栈：Python、Streamlit、MCP、httpx、DeepSeek、ReportLab。
+技术栈：Python、FastAPI、React、TypeScript、LangGraph、SQLAlchemy、DeepSeek。数据库适配器包含 MySQL、PostgreSQL、SQL Server 和 Oracle。
 
-- [源码](projects/enterprise-radar/)
-- 本地体验：`http://localhost:3102`
-- 边界：外部数据可用性取决于企查查 MCP 权限，规则评分不替代专业尽调。
+## 二、企信雷达
 
-## 03 · Enterprise Knowledge Agent
+### 解决什么问题
 
-### 业务背景
+做企业尽调时，先要确认“查的是哪一家企业”，再查工商登记、经营状态、被执行人、失信、股权和其他风险信息。直接把搜索结果交给模型会有同名企业误判和评分不可解释的问题。
 
-企业制度、服务手册和流程文档分散在不同位置。普通关键词搜索无法组合证据，直接让模型回答又容易脱离原文，无法让使用者复核。
+### 目前可以做什么
 
-### 业务闭环
+| 功能 | 实际行为 | 结果 |
+| --- | --- | --- |
+| 企业搜索 | 通过 MCP 企业信息服务搜索名称或简称 | 返回候选企业列表，不自动选第一条 |
+| 主体确认 | 人工选择统一社会信用代码 | 后续查询固定到已确认主体 |
+| 风险扫描 | 并发调用工商、股权、司法等风险工具 | 形成结构化风险因子和条目数 |
+| 初步评分 | 由代码中的规则表计算风险分 | 给出风险等级、命中原因和待核查项 |
+| 报告输出 | 将结构化结果交给报告层 | 导出 JSON 和 PDF |
+
+### 风险分怎么算
+
+评分不是模型自由生成的。例如“被执行人”“失信信息”“经营异常”等因子有明确的规则分值；未纳入规则的因子会进入“待核查”，不会被悄悄算成高风险。README 不展示线上查询结果，避免把第三方接口返回内容误当成固定数据。
+
+### 代码入口
+
+- 页面：`projects/enterprise-radar/app.py`
+- MCP 客户端：`projects/enterprise-radar/services/qcc_client.py`
+- 评分规则：`projects/enterprise-radar/services/risk_scoring.py`
+- 报告生成：`projects/enterprise-radar/services/report_service.py`
+
+技术栈：Python、Streamlit、MCP、httpx、ReportLab、DeepSeek。
+
+边界：企查查 MCP 服务需要本机配置权限；没有权限时页面应显示错误，不会伪造企业数据。
+
+## 三、Enterprise Knowledge Agent
+
+### 解决什么问题
+
+公司制度、员工手册和业务文档通常是 PDF、Markdown、TXT 等文件。单纯关键词搜索很难把多份制度拼起来，直接让模型回答又无法说明依据在哪里。
+
+### 目前可以做什么
+
+| 功能 | 实际行为 | 结果 |
+| --- | --- | --- |
+| 知识库管理 | 创建知识库并隔离文档 | 每次问答限定在当前知识库 |
+| 文档入库 | 上传 PDF、Markdown、TXT | 解析、切片、向量化并记录处理状态 |
+| 混合检索 | 在 pgvector 和文本索引中找相关片段 | 返回相似度和原文片段 |
+| Agent 问答 | 受控 Agent 选择检索工具后组织答案 | 回答带来源编号和 Agent Trace |
+| 失败处理 | 文档解析失败可重试，检索不到资料时拒答 | 不用模型补造引用 |
+
+### 一次问答怎么走
 
 ```text
-创建知识库
-  → 上传 TXT / Markdown / PDF
-  → 解析、切片与向量化
-  → 受控 Agent 选择检索工具
-  → 返回带原文引用的答案与 Agent Trace
+上传文档
+  → 文本解析 / 切片 / embedding
+  → 用户提问
+  → Agent 判断意图并调用知识库检索
+  → 组合多个片段
+  → 返回回答、来源片段和工具调用轨迹
 ```
 
-### 关键实现
+### 代码入口
 
-- 文档处理状态、内容哈希和切片结果可追踪，避免重复处理。
-- Agent 只能在当前知识库边界内检索，资料不足时明确拒答，不补造引用。
-- 混合检索结合 PostgreSQL / pgvector 与文本匹配，回答附带证据片段。
+- Web：`projects/enterprise-knowledge-agent/apps/web/`
+- API：`projects/enterprise-knowledge-agent/services/agent-api/`
+- 文档处理：`services/agent-api/app/services/document_processing.py`
+- Agent：`services/agent-api/app/agent/`
+- 样例语料：[`samples/enterprise_corpus`](projects/enterprise-knowledge-agent/samples/enterprise_corpus/)
 
-技术栈：Python、FastAPI、Next.js、PostgreSQL、pgvector、Ollama、DeepSeek。
+技术栈：FastAPI、Next.js、PostgreSQL、pgvector、Ollama、DeepSeek。
 
-- [源码](projects/enterprise-knowledge-agent/)
-- [样例企业语料](projects/enterprise-knowledge-agent/samples/enterprise_corpus/)
-- 本地体验：`http://localhost:3103`
+## 三个项目放在一起的原因
 
-## 我在这个作品集里重点展示什么
+它们对应企业内部最常见的三类信息：
 
-- **Agent 编排**：把模型放在理解、规划和工具选择的位置，把状态转移和执行边界交给代码。
-- **安全执行**：NL2SQL 经过结构化输出和规则校验；数据库写操作必须经过影响预览和人工确认。
-- **可解释性**：语义目录保留证据，企业风险保留规则项，知识库问答保留原文引用和 Agent Trace。
-- **工程化**：三个项目在一个仓库中统一启动，端口、环境变量、数据库容器和迁移脚本相互隔离。
+| 信息类型 | 项目 | 最终产出 |
+| --- | --- | --- |
+| 结构化数据 | AI Database Agent | 可追溯语义目录、查询表格、确认后的数据库操作 |
+| 外部企业信息 | 企信雷达 | 风险因子、规则分数、JSON / PDF 报告 |
+| 内部非结构化文档 | Knowledge Agent | 带原文引用的回答和 Agent Trace |
 
-## 目录结构
+共同点不是“都调用了大模型”，而是模型只负责理解和组织，数据范围、SQL 校验、评分和执行边界由代码控制。
 
-```text
-enterprise-ai-portfolio/
-├── README.md
-├── site/                              # 作品展示站
-├── projects/
-│   ├── ai-database-agent/             # 数据库智能平台
-│   ├── enterprise-radar/              # 企业信息与风险分析
-│   └── enterprise-knowledge-agent/    # 企业知识库智能体
-└── scripts/
-    ├── start-all.sh                   # 一键启动
-    ├── status.sh                      # 健康检查
-    └── stop-all.sh                    # 停止应用
-```
+## 本地运行
 
-## 本地完整体验
-
-要求：Node.js 22+、Python 3.12+、uv、Docker Desktop。第一次启动会自动安装缺失依赖并启动本地数据库；API Key 和数据库密码只从本机 `.env` 读取，不会提交到 Git。
+要求：Node.js 22+、Python 3.12+、uv、Docker Desktop。
 
 ```bash
 ./scripts/start-all.sh
@@ -158,18 +152,33 @@ enterprise-ai-portfolio/
 | 服务 | 地址 |
 | --- | --- |
 | 作品展示站 | http://localhost:3000 |
-| AI Database Agent | http://localhost:3101/demo |
+| AI Database Agent 离线演示 | http://localhost:3101/demo |
 | 企信雷达 | http://localhost:3102 |
-| Enterprise Knowledge Agent | http://localhost:3103 |
+| Knowledge Agent | http://localhost:3103 |
 
-停止应用（默认不删除数据库卷）：
+停止应用（不删除数据库卷）：
 
 ```bash
 ./scripts/stop-all.sh
 ```
 
-## 发布边界
+本地启动器会安装依赖、启动 MySQL / PostgreSQL，并运行 Knowledge Agent 的迁移。API Key、数据库密码和第三方服务地址只放在本机 `.env`，不会提交到仓库。
 
-- 线上展示应使用只读、限流、脱敏的数据，不连接生产数据库。
-- 不提交 `.env`、API Key、真实企业信息、真实文档和本地数据库运行目录。
-- 本仓库提供的是可复核的工程作品和本地演示，不宣称已经提供面向公众的 SaaS 服务。
+## 目录
+
+```text
+enterprise-ai-portfolio/
+├── README.md
+├── site/                  # 作品展示站
+├── projects/
+│   ├── ai-database-agent/
+│   ├── enterprise-radar/
+│   └── enterprise-knowledge-agent/
+└── scripts/               # start / status / stop
+```
+
+## 公开仓库边界
+
+- 演示数据是模拟或脱敏数据，不连接生产数据库。
+- 不提交 `.env`、API Key、真实企业数据、真实文档和数据库运行目录。
+- 企信雷达的第三方数据可用性取决于本机 MCP 配置；无法调用时应明确报错。
